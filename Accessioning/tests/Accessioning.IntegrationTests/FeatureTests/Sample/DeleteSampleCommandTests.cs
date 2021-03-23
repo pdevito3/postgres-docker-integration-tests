@@ -6,7 +6,7 @@ namespace Accessioning.IntegrationTests.FeatureTests.Sample
     using Microsoft.EntityFrameworkCore;
     using NUnit.Framework;
     using System.Threading.Tasks;
-    using static Accessioning.WebApi.Features.Samples.AddSample;
+    using static Accessioning.WebApi.Features.Samples.DeleteSample;
     using static TestFixture;
 
     public class DeleteSampleCommandTests : TestBase

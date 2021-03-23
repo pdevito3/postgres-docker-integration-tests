@@ -6,7 +6,7 @@ namespace Accessioning.IntegrationTests.FeatureTests.Patient
     using Microsoft.EntityFrameworkCore;
     using NUnit.Framework;
     using System.Threading.Tasks;
-    using static Accessioning.WebApi.Features.Patients.AddPatient;
+    using static Accessioning.WebApi.Features.Patients.DeletePatient;
     using static TestFixture;
 
     public class DeletePatientCommandTests : TestBase

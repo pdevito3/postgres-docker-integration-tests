@@ -12,10 +12,13 @@ namespace Accessioning.IntegrationTests.TestUtilities
     using System.Net.Sockets;
     using System.Text;
     using System.Threading.Tasks;
+    using Npgsql;
 
     public static class DockerSqlDatabaseUtilities
     {
-        public const string DB_SA_PASSWORD = "#testingDockerPassword#";
+        public const string DB_SA_PASSWORD = "postgres";
+        public const string DB_USER = "postgres";
+        public const string DB_NAME = "stripe";
         public const string DB_IMAGE = "postgres";
         public const string DB_IMAGE_TAG = "latest";
         public const string DB_CONTAINER_NAME = "IntegrationTestingContainer_Accessioning";
@@ -26,7 +29,7 @@ namespace Accessioning.IntegrationTests.TestUtilities
             await CleanupRunningContainers();
             await CleanupRunningVolumes();
             var dockerClient = GetDockerClient();
-            var freePort = GetFreePort();
+            var freePort = GetFreePort(); //"5432"; // GetFreePort();
 
             // This call ensures that the latest SQL Server Docker image is pulled
             await dockerClient.Images.CreateImageAsync(new ImagesCreateParameters
@@ -61,26 +64,28 @@ namespace Accessioning.IntegrationTests.TestUtilities
                         Image = $"{DB_IMAGE}:{DB_IMAGE_TAG}",
                         Env = new List<string>
                         {
-                        "POSTGRES_PASSWORD={DB_SA_PASSWORD}"
+                            $"POSTGRES_USER={DB_USER}",
+                            $"POSTGRES_DB={DB_NAME}",
+                            $"POSTGRES_PASSWORD={DB_SA_PASSWORD}"
                         },
                         HostConfig = new HostConfig
                         {
                             PortBindings = new Dictionary<string, IList<PortBinding>>
                             {
-                            {
-                                "1433/tcp",
-                                new PortBinding[]
                                 {
-                                    new PortBinding
+                                    "5432/tcp",
+                                    new PortBinding[]
                                     {
-                                        HostPort = freePort
+                                        new PortBinding
+                                        {
+                                            HostPort = freePort
+                                        }
                                     }
                                 }
-                            }
                             },
                             Binds = new List<string>
                             {
-                                $"{DB_VOLUME_NAME}:/Accessioning_data"
+                                $"{DB_VOLUME_NAME}:/var/lib/postgresql/data"
                             }
                         },
                     });
@@ -182,8 +187,12 @@ namespace Accessioning.IntegrationTests.TestUtilities
             {
                 try
                 {
-                    var sqlConnectionString = $"Data Source=localhost,{databasePort};Integrated Security=False;User ID=SA;Password={DB_SA_PASSWORD}";
-                    using var sqlConnection = new SqlConnection(sqlConnectionString);
+                    var sqlConnectionString = GetSqlConnectionString(databasePort);
+
+                    //var sqlConnectionString = $"User ID={DB_USER};Password={DB_SA_PASSWORD};Host=localhost;Port={databasePort};Database={DB_NAME};";
+                    //var sqlConnectionString = $"Data Source=localhost,{databasePort};Integrated Security=False;User ID=SA;Password={DB_SA_PASSWORD}";
+
+                    using var sqlConnection = new NpgsqlConnection(sqlConnectionString);
                     await sqlConnection.OpenAsync();
                     connectionEstablised = true;
                 }
@@ -200,6 +209,21 @@ namespace Accessioning.IntegrationTests.TestUtilities
             }
 
             return;
+        }
+
+        public static string GetSqlConnectionString(string port)
+        {
+            var sqlConnectionString = new NpgsqlConnectionStringBuilder()
+            {
+                Host = "localhost",
+                Password = DB_SA_PASSWORD,
+                Username = DB_USER,
+                Database = DB_NAME,
+                Port = Int32.Parse(port)
+            };
+
+            var con = sqlConnectionString.ToString();
+            return con;
         }
 
         private static string GetFreePort()

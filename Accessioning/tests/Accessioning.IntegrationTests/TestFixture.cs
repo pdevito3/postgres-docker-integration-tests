@@ -38,7 +38,17 @@ namespace Accessioning.IntegrationTests
 
             (_dockerContainerId, _dockerSqlPort) = await DockerSqlDatabaseUtilities.EnsureDockerStartedAndGetContainerIdAndPortAsync();
 
-            var dockerConnectionString = GetSqlConnectionString();
+            var dockerConnectionString = DockerSqlDatabaseUtilities.GetSqlConnectionString(_dockerSqlPort);
+            //    new NpgsqlConnectionStringBuilder()
+            //{
+            //    Host = "localhost",
+            //    Password = DockerSqlDatabaseUtilities.DB_SA_PASSWORD,
+            //    Username = DockerSqlDatabaseUtilities.DB_USER,
+            //    Database = DockerSqlDatabaseUtilities.DB_NAME,
+            //    IntegratedSecurity = true,
+            //    Port = Int32.Parse(_dockerSqlPort)
+            //}.ToString();
+
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddInMemoryCollection(new Dictionary<string, string>
@@ -75,8 +85,8 @@ namespace Accessioning.IntegrationTests
             _checkpoint = new Checkpoint
             {
                 TablesToIgnore = new[] { "__EFMigrationsHistory" },
-                //SchemasToExclude = new[] { "information_schema", "pg_subscription", "pg_catalog", "pg_toast" },
-                //DbAdapter = DbAdapter.Postgres
+                SchemasToExclude = new[] { "information_schema", "pg_subscription", "pg_catalog", "pg_toast" },
+                DbAdapter = DbAdapter.Postgres
             };
 
             EnsureDatabase();
@@ -102,15 +112,15 @@ namespace Accessioning.IntegrationTests
 
         public static async Task ResetState()
         {
-            await _checkpoint.Reset(_configuration.GetConnectionString("AccessioningDbContext"));
+            //await _checkpoint.Reset(_configuration.GetConnectionString("AccessioningDbContext"));
             //_currentUserId = null;
 
-            //using (var conn = new NpgsqlConnection(_configuration.GetConnectionString("AccessioningDbContext")))
-            //{
-            //    await conn.OpenAsync();
+            using (var conn = new NpgsqlConnection(_configuration.GetConnectionString("AccessioningDbContext")))
+            {
+                await conn.OpenAsync();
 
-            //    await _checkpoint.Reset(conn);
-            //}
+                await _checkpoint.Reset(conn);
+            }
         }
 
         public static async Task<TEntity> FindAsync<TEntity>(params object[] keyValues)
@@ -207,14 +217,6 @@ namespace Accessioning.IntegrationTests
             });
         }
 
-        public string GetSqlConnectionString()
-        {
-            return $"Data Source=localhost,{_dockerSqlPort};" +
-                $"Initial Catalog={DATABASE_NAME_PLACEHOLDER};" +
-                "Integrated Security=False;" +
-                "User ID=SA;" +
-                $"Password={DockerSqlDatabaseUtilities.SQLSERVER_SA_PASSWORD}";
-        }
 
         [OneTimeTearDown]
         public Task RunAfterAnyTests()
